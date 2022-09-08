@@ -2,17 +2,15 @@ package com.demo.excle;
 
 
 import cn.hutool.core.collection.CollectionUtil;
-import cn.hutool.core.io.resource.ClassPathResource;
+import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.StrUtil;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbookFactory;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,7 +24,7 @@ public class MainExcle {
      * @return
      */
     public static Map<Integer, List<AbstractModel>> getSource() {
-        ClassPathResource source = new ClassPathResource("园所蔬菜请购计划样表.xls");
+        String url = System.getProperty("user.dir") + "\\"  + "园所蔬菜请购计划样表.xls";
         // 园区幼儿
         List<Integer> children = Arrays.asList(4,5,6,8,9,10,11);
         // 园区员工
@@ -36,7 +34,7 @@ public class MainExcle {
         // 非园区员工
         List<Integer> noEmployee = Arrays.asList(35,36,37,38,39,40,41,42,43,44,45,46,47,48);
         List<AbstractModel> resultList = new ArrayList<>();
-        try (InputStream is= source.getStream()) {
+        try (InputStream is= getFileInputStream(url)) {
             try (BufferedInputStream bis = new BufferedInputStream(is)) {
                 try (Workbook workbook = XSSFWorkbookFactory.create(bis)) {
                     // 循环表
@@ -63,7 +61,7 @@ public class MainExcle {
                             }
                             AbstractModel abstractModel = new AbstractModel();
                             // 保存结果集
-                            Map<String, Object> map = new HashMap<>();
+                            Map<String, Object> map = new LinkedHashMap<>();
                             //当前行
                             Row row = sheetAt.getRow(j);
                             for (int k = 0; k < headMap.size(); k++) {
@@ -106,7 +104,7 @@ public class MainExcle {
                             }
                             // 保存记录
                             abstractModel.setResultMap(map);
-                            if (StrUtil.isNotEmpty(abstractModel.getSubject())) {
+                            if (StrUtil.isNotEmpty(abstractModel.getSubject()) && abstractModel.getResultMap().size() > 0) {
                                 resultList.add(abstractModel);
                             }
                         }
@@ -127,27 +125,25 @@ public class MainExcle {
      * @param source
      */
     public static void transformSource(Map<Integer, List<AbstractModel>> source, int flag) {
-        ClassPathResource classPathResource = null;
         String filename = null;
         if (flag == 1) {
-           filename = "公司园（幼儿）.xlsx";
+           filename = "公司园（幼儿）模板.xlsx";
         }
         if (flag == 2) {
-            filename = "非公司园（幼儿）.xlsx";
+            filename = "非公司园（幼儿）模板.xlsx";
         }
         if (flag == 3) {
-            filename = "公司园（老师）.xlsx";
+            filename = "公司园（老师）模板.xlsx";
         }
         if (flag == 4) {
-            filename = "非公司园（老师）.xlsx";
+            filename = "非公司园（老师）模板.xlsx";
         }
-        classPathResource = new ClassPathResource(filename);
-        try (InputStream is= classPathResource.getStream()) {
+        try (InputStream is= getFileInputStream(System.getProperty("user.dir") + "\\" + filename)) {
                 try (Workbook workbook = XSSFWorkbookFactory.create(is)) {
                     List<AbstractModel> abstractModels = source.get(flag);
                     // 按周分组
                     Map<Integer, List<AbstractModel>> collect = abstractModels.parallelStream().collect(Collectors.groupingBy(item -> item.getWeek()));
-                    for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    for (int i = 0; i < workbook.getNumberOfSheets() - 1; i++) {
                         int weekOffset = 0;
                         //当前周的数据
                         List<AbstractModel> weekSource = collect.get(i);
@@ -159,37 +155,91 @@ public class MainExcle {
                             //
                             if (j == 4) {
                                 Map<String, Object> resultMapOne = getWeekSourceForSpecial(weekSource, weekOffset);
+                                String subjectOne = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectOne)) {
+                                    setCellSubject(sheetAt, subjectOne, j, 0);
+                                }
                                 Map<String, Object> resultMapTwo = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectTwo = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectTwo)) {
+                                    setCellSubject(sheetAt, subjectTwo, j, 7);
+                                }
                                 setCellValue(resultMapOne, sheetAt, 4, 1);
                                 setCellValue(resultMapTwo, sheetAt, 4, 8);
                             }
                             if (j == 54) {
                                 Map<String, Object> resultMapOne = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectOne = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectOne)) {
+                                    setCellSubject(sheetAt, subjectOne, j, 0);
+                                }
                                 Map<String, Object> resultMapTwo = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectTwo = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectTwo)) {
+                                    setCellSubject(sheetAt, subjectTwo, j, 7);
+                                }
                                 setCellValue(resultMapOne, sheetAt, 54, 1);
                                 setCellValue(resultMapTwo, sheetAt, 54, 8);
                             }
                             if (j == 107) {
                                 Map<String, Object> resultMapOne = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectOne = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectOne)) {
+                                    setCellSubject(sheetAt, subjectOne, j, 0);
+                                }
                                 Map<String, Object> resultMapTwo = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectTwo = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectTwo)) {
+                                    setCellSubject(sheetAt, subjectTwo, j, 7);
+                                }
                                 setCellValue(resultMapOne, sheetAt, 107, 1);
                                 setCellValue(resultMapTwo, sheetAt, 107, 8);
                             }
                             if (j == 151) {
                                 Map<String, Object> resultMapOne = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectOne = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectOne)) {
+                                    setCellSubject(sheetAt, subjectOne, j, 0);
+                                }
                                 Map<String, Object> resultMapTwo = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectTwo = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectTwo)) {
+                                    setCellSubject(sheetAt, subjectTwo, j, 7);
+                                }
                                 setCellValue(resultMapOne, sheetAt, 151, 1);
                                 setCellValue(resultMapTwo, sheetAt, 151, 8);
                             }
                             if (j == 195) {
                                 Map<String, Object> resultMapOne = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectOne = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectOne)) {
+                                    setCellSubject(sheetAt, subjectOne, j, 0);
+                                }
                                 Map<String, Object> resultMapTwo = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectTwo = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectTwo)) {
+                                    setCellSubject(sheetAt, subjectTwo, j, 7);
+                                }
                                 setCellValue(resultMapOne, sheetAt, 195, 1);
                                 setCellValue(resultMapTwo, sheetAt, 195, 8);
                             }
+                            if (j == 239) {
+                                Map<String, Object> resultMapOne = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectOne = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectOne)) {
+                                    setCellSubject(sheetAt, subjectOne, j, 0);
+                                }
+                                Map<String, Object> resultMapTwo = getWeekSourceForSpecial(weekSource, ++weekOffset);
+                                String subjectTwo = getSubjectForSpecial(weekSource, weekOffset);
+                                if (StrUtil.isNotEmpty(subjectTwo)) {
+                                    setCellSubject(sheetAt, subjectTwo, j, 7);
+                                }
+                                setCellValue(resultMapOne, sheetAt, 239, 1);
+                                setCellValue(resultMapTwo, sheetAt, 239, 8);
+                            }
                         }
                     }
-                    workbook.write(new FileOutputStream(new File("src/main/resources/newFile/" + filename)));
+                    workbook.write(new FileOutputStream(new File(System.getProperty("user.dir")  + "\\newFile\\" + filename.replace("模板", ""))));
                 }
         } catch (Exception e) {
             e.printStackTrace();
@@ -200,8 +250,9 @@ public class MainExcle {
     }
 
     public static void main(String[] args) {
+        Map<Integer, List<AbstractModel>> source = getSource();
         for (int i = 1; i < 5; i++) {
-            transformSource(getSource(), i);
+            transformSource(source, i);
         }
     }
 
@@ -219,7 +270,11 @@ public class MainExcle {
         }
             for (Map.Entry<String, Object> entry: map.entrySet()
             ) {
-                sheet.getRow(x).getCell(y).setCellValue(entry.getKey());
+                Cell cell = sheet.getRow(x).getCell(y);
+                if (cell == null) {
+                    return;
+                }
+                cell.setCellValue(entry.getKey());
                 try {
                     sheet.getRow(x).getCell(y + 1).setCellValue((Double) entry.getValue());
                 } catch (Exception e) {
@@ -235,6 +290,33 @@ public class MainExcle {
             return abstractModel.getResultMap();
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private static String getSubjectForSpecial(List<AbstractModel> source, int index) {
+        try {
+            AbstractModel abstractModel = source.get(index);
+            return abstractModel.getSubject() + "送菜明细表";
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static InputStream getFileInputStream(String url) {
+        File file = new File(url);
+        FileInputStream fileInputStream = null;
+        try {
+            fileInputStream = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return IoUtil.toBuffered(fileInputStream);
+    }
+
+    private static void setCellSubject(Sheet sheet, String subject, int j, int k) {
+        Cell cell = sheet.getRow(j - 4).getCell(k);
+        if (cell != null) {
+            cell.setCellValue(subject);
         }
     }
 }
