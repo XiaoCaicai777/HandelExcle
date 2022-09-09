@@ -34,14 +34,15 @@ public class MainExcle {
         // 非园区员工
         List<Integer> noEmployee = Arrays.asList(35,36,37,38,39,40,41,42,43,44,45,46,47,48);
         List<AbstractModel> resultList = new ArrayList<>();
+        Date currentDate;
         try (InputStream is= getFileInputStream(url)) {
             try (BufferedInputStream bis = new BufferedInputStream(is)) {
                 try (Workbook workbook = XSSFWorkbookFactory.create(bis)) {
                     // 循环表
                     for (int i = 1; i < workbook.getNumberOfSheets(); i++) {
-                        Map<Integer, Object> headMap = new HashMap<>();;
+                        Map<Integer, Object> headMap = new HashMap<>();
                         Sheet sheetAt = workbook.getSheetAt(i);
-                        Date currentDate = sheetAt.getRow(0).getCell(4).getDateCellValue();
+                         currentDate = sheetAt.getRow(0).getCell(4).getDateCellValue();
                         // 循环表中的行
                         for (int j = 2; j < 49; j++) {
                             // 获取表头索引映射
@@ -64,7 +65,7 @@ public class MainExcle {
                             Map<String, Object> map = new LinkedHashMap<>();
                             //当前行
                             Row row = sheetAt.getRow(j);
-                            for (int k = 0; k < headMap.size(); k++) {
+                            for (int k = 0; k < row.getLastCellNum(); k++) {
                                 // 获取主题名
                                 if (k == 0) {
                                     String stringCellValue = row.getCell(k).getStringCellValue();
@@ -116,8 +117,23 @@ public class MainExcle {
             System.out.println(e.getCause());
         }
         Map<Integer, List<AbstractModel>> collect = resultList.parallelStream().collect(Collectors.groupingBy(item -> item.getFlag()));
-
         return collect;
+    }
+
+    private static Date getCurrentDate() {
+        Date currentDate = null;
+        String url = System.getProperty("user.dir") + "\\"  + "园所蔬菜请购计划样表.xls";
+        try (InputStream is= getFileInputStream(url)) {
+            try (BufferedInputStream bis = new BufferedInputStream(is)) {
+                try (Workbook workbook = XSSFWorkbookFactory.create(bis)) {
+                    Sheet sheetAt = workbook.getSheetAt(1);
+                    currentDate = sheetAt.getRow(0).getCell(4).getDateCellValue();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return currentDate;
     }
 
     /**
@@ -138,19 +154,20 @@ public class MainExcle {
         if (flag == 4) {
             filename = "非公司园（老师）模板.xlsx";
         }
+        //TODO 没有实现时间自动处理
         try (InputStream is= getFileInputStream(System.getProperty("user.dir") + "\\" + filename)) {
                 try (Workbook workbook = XSSFWorkbookFactory.create(is)) {
                     List<AbstractModel> abstractModels = source.get(flag);
+                    // 设置当前时间
+                    workbook.getSheetAt(0).getRow(1).getCell(1).setCellValue(getCurrentDate());
                     // 按周分组
                     Map<Integer, List<AbstractModel>> collect = abstractModels.parallelStream().collect(Collectors.groupingBy(item -> item.getWeek()));
-                    for (int i = 0; i < workbook.getNumberOfSheets() - 1; i++) {
+
+                    for (Map.Entry<Integer, List<AbstractModel>> entry : collect.entrySet()) {
                         int weekOffset = 0;
                         //当前周的数据
-                        List<AbstractModel> weekSource = collect.get(i);
-                        Sheet sheetAt = workbook.getSheetAt(i);
-                        if (i == 0) {
-                            sheetAt.getRow(1).getCell(1).setCellValue(weekSource.get(0).getCurrentDate());
-                        }
+                        List<AbstractModel> weekSource = entry.getValue();
+                        Sheet sheetAt = workbook.getSheetAt(entry.getKey());
                         for (int j = 0; j < sheetAt.getLastRowNum(); j++) {
                             //
                             if (j == 4) {
