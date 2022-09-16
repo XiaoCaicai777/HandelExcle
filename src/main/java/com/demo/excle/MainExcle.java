@@ -292,6 +292,14 @@ public class MainExcle {
                 } catch (Exception e) {
                     sheet.getRow(x).getCell(y + 1).setCellValue((String) entry.getValue());
                 }
+//                String stringCellValue1 = sheet.getRow(4).getCell(3).getStringCellValue();
+//                String stringCellValue2 = sheet.getRow(4).getCell(4).getStringCellValue();
+//                String stringCellValue3 = sheet.getRow(4).getCell(5).getStringCellValue();
+//                if (StrUtil.isNotEmpty(stringCellValue1)) {
+//                    sheet.getRow(x).getCell(y + 2).setCellValue(stringCellValue1);
+//                    sheet.getRow(x).getCell(y + 3).setCellValue(stringCellValue2);
+//                    sheet.getRow(x).getCell(y + 4).setCellValue(stringCellValue3);
+//                }
                 ++x;
             }
     }
