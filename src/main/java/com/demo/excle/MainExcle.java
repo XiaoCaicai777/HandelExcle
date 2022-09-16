@@ -31,18 +31,21 @@ public class MainExcle {
         List<Integer> employee = Arrays.asList(27,28,29,31,32,33,34);
         // 非园区幼儿
         List<Integer> noChildren = Arrays.asList(12,13,14,15,16,17,18,19,20,21,22,23,24);
+        // 非园区幼儿 排除海伦幼儿
+//        List<Integer> noChildren = Arrays.asList(12,13,14,15,16,17,19,20,21,22,23,24);
         // 非园区员工
         List<Integer> noEmployee = Arrays.asList(35,36,37,38,39,40,41,42,43,44,45,46,47,48);
+        // 非园区员工  排除总部员工和海伦员工
+//        List<Integer> noEmployee = Arrays.asList(35,36,37,38,39,40,42,43,45,46,47,48);
         List<AbstractModel> resultList = new ArrayList<>();
-        Date currentDate;
         try (InputStream is= getFileInputStream(url)) {
             try (BufferedInputStream bis = new BufferedInputStream(is)) {
                 try (Workbook workbook = XSSFWorkbookFactory.create(bis)) {
                     // 循环表
                     for (int i = 1; i < workbook.getNumberOfSheets(); i++) {
-                        Map<Integer, Object> headMap = new HashMap<>();
+                        Map<Integer, Object> headMap = new HashMap<>();;
                         Sheet sheetAt = workbook.getSheetAt(i);
-                         currentDate = sheetAt.getRow(0).getCell(4).getDateCellValue();
+                        Date currentDate = sheetAt.getRow(0).getCell(4).getDateCellValue();
                         // 循环表中的行
                         for (int j = 2; j < 49; j++) {
                             // 获取表头索引映射
@@ -56,8 +59,8 @@ public class MainExcle {
                                 }
                                 continue;
                             }
-                            //跳过第4， 24， 25行
-                            if (j == 3 || j == 25 || j == 26 || j == 7 || j == 30) {
+                            //跳过第4， 24， 25行 2022-09-16 排除海论幼儿园和总部员工
+                            if (j == 3 || j == 25 || j == 26 || j == 7 || j == 30 || j == 41 || j == 44 || j == 18) {
                                 continue;
                             }
                             AbstractModel abstractModel = new AbstractModel();
@@ -68,7 +71,10 @@ public class MainExcle {
                             for (int k = 0; k < row.getLastCellNum(); k++) {
                                 // 获取主题名
                                 if (k == 0) {
-                                    String stringCellValue = row.getCell(k).getStringCellValue();
+                                    String stringCellValue = null;
+                                    if (row.getCell(k) != null) {
+                                        stringCellValue = row.getCell(k).getStringCellValue();
+                                    }
                                     // 如果获取到的主题为空 跳出循环
                                     if (StrUtil.isEmpty(stringCellValue)) {
                                         break;
@@ -94,19 +100,24 @@ public class MainExcle {
                                 if (k == 1 || k == 2) {
                                     continue;
                                 }
+                                if (row.getCell(k) != null) {
                                 try {
-                                    double numericCellValue = row.getCell(k).getNumericCellValue();
-                                    if (numericCellValue != 0.0) {
-                                        map.put(String.valueOf(headMap.get(k)), numericCellValue);
-                                    }
+                                        double numericCellValue = row.getCell(k).getNumericCellValue();
+                                        if (numericCellValue != 0.0) {
+                                            map.put(String.valueOf(headMap.get(k)), numericCellValue);
+                                        }
                                 } catch (Exception e) {
                                     map.put(String.valueOf(headMap.get(k)), row.getCell(k).getStringCellValue());
                                 }
+                                }
                             }
                             // 保存记录
+                            if (map.size() == 0) {
+                                map.put("", "");
+                            }
                             abstractModel.setResultMap(map);
-                            if (StrUtil.isNotEmpty(abstractModel.getSubject()) && abstractModel.getResultMap().size() > 0) {
-                                resultList.add(abstractModel);
+                            if (StrUtil.isNotEmpty(abstractModel.getSubject())) {
+                                    resultList.add(abstractModel);
                             }
                         }
                     }
@@ -117,23 +128,8 @@ public class MainExcle {
             System.out.println(e.getCause());
         }
         Map<Integer, List<AbstractModel>> collect = resultList.parallelStream().collect(Collectors.groupingBy(item -> item.getFlag()));
-        return collect;
-    }
 
-    private static Date getCurrentDate() {
-        Date currentDate = null;
-        String url = System.getProperty("user.dir") + "\\"  + "园所蔬菜请购计划样表.xls";
-        try (InputStream is= getFileInputStream(url)) {
-            try (BufferedInputStream bis = new BufferedInputStream(is)) {
-                try (Workbook workbook = XSSFWorkbookFactory.create(bis)) {
-                    Sheet sheetAt = workbook.getSheetAt(1);
-                    currentDate = sheetAt.getRow(0).getCell(4).getDateCellValue();
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return currentDate;
+        return collect;
     }
 
     /**
@@ -154,20 +150,19 @@ public class MainExcle {
         if (flag == 4) {
             filename = "非公司园（老师）模板.xlsx";
         }
-        //TODO 没有实现时间自动处理
         try (InputStream is= getFileInputStream(System.getProperty("user.dir") + "\\" + filename)) {
                 try (Workbook workbook = XSSFWorkbookFactory.create(is)) {
                     List<AbstractModel> abstractModels = source.get(flag);
-                    // 设置当前时间
-                    workbook.getSheetAt(0).getRow(1).getCell(1).setCellValue(getCurrentDate());
                     // 按周分组
                     Map<Integer, List<AbstractModel>> collect = abstractModels.parallelStream().collect(Collectors.groupingBy(item -> item.getWeek()));
-
-                    for (Map.Entry<Integer, List<AbstractModel>> entry : collect.entrySet()) {
+                    for (int i = 0; i < workbook.getNumberOfSheets() - 1; i++) {
                         int weekOffset = 0;
                         //当前周的数据
-                        List<AbstractModel> weekSource = entry.getValue();
-                        Sheet sheetAt = workbook.getSheetAt(entry.getKey());
+                        List<AbstractModel> weekSource = collect.get(i);
+                        Sheet sheetAt = workbook.getSheetAt(i);
+                        if (i == 0) {
+                            sheetAt.getRow(1).getCell(1).setCellValue(weekSource.get(0).getCurrentDate());
+                        }
                         for (int j = 0; j < sheetAt.getLastRowNum(); j++) {
                             //
                             if (j == 4) {
