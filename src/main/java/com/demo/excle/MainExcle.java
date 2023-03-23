@@ -32,7 +32,7 @@ public class MainExcle {
         // 非园区幼儿
         List<Integer> noChildren = Arrays.asList(12,13,14,15,16,17,18,19,20,21,22,23,24);
         // 非园区幼儿 排除海伦幼儿
-//        List<Integer> noChildren = Arrays.asList(12,13,14,15,16,17,19,20,21,22,23,24);
+//        List<Integer> noChildren = Arrays.asList  (12,13,14,15,16,17,19,20,21,22,23,24);
         // 非园区员工
         List<Integer> noEmployee = Arrays.asList(35,36,37,38,39,40,41,42,43,44,45,46,47,48);
         // 非园区员工  排除总部员工和海伦员工
@@ -42,7 +42,11 @@ public class MainExcle {
             try (BufferedInputStream bis = new BufferedInputStream(is)) {
                 try (Workbook workbook = XSSFWorkbookFactory.create(bis)) {
                     // 循环表
-                    for (int i = 1; i < workbook.getNumberOfSheets(); i++) {
+                    for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                        if (workbook.getSheetAt(i).getSheetName().contains("批注")) {
+                            //如果是批注  跳出一次循环
+                            continue;
+                        }
                         Map<Integer, Object> headMap = new HashMap<>();;
                         Sheet sheetAt = workbook.getSheetAt(i);
                         Date currentDate = sheetAt.getRow(0).getCell(4).getDateCellValue();
